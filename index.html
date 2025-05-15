@@ -84,7 +84,8 @@
       max-width: 600px;
       aspect-ratio: 1/1;
       display: flex;
-      justify-content: center; align-items: center;
+      justify-content: center;
+      align-items: center;
       margin: 10px 0;
     }
 
@@ -154,7 +155,8 @@
       width: 40px;
       height: 40px;
       display: flex;
-      justify-content: center; align-items: center;
+      justify-content: center;
+      align-items: center;
       border-radius: 50%;
     }
     #settings-btn:hover {
@@ -331,6 +333,29 @@
       100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
     }
 
+    /* Countdown overlay */
+    #countdown {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 10rem;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 0 0 20px rgba(0,0,0,0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      z-index: 50;
+    }
+    #countdown.show {
+      opacity: 1;
+    }
+
     /* Responsive adjustments */
     @media (max-width: 500px) {
       #grid-container {
@@ -350,6 +375,10 @@
       
       input:checked + .slider:before {
         transform: translateX(20px);
+      }
+      
+      #countdown {
+        font-size: 6rem;
       }
     }
   </style>
@@ -425,6 +454,7 @@
   </div>
   
   <div id="toast">Settings saved!</div>
+  <div id="countdown"></div>
 
   <h1>Memory Path</h1>
   <div id="score">Level: 0</div>
@@ -472,6 +502,7 @@
           settingsModal = document.getElementById('settings-modal'),
           closeSettingsBtn = document.querySelector('.close-btn'),
           toast = document.getElementById('toast'),
+          countdown = document.getElementById('countdown'),
           clickSound = document.getElementById('click-sound'),
           errorSound = document.getElementById('error-sound'),
           successSound = document.getElementById('success-sound'),
@@ -625,6 +656,29 @@
       updateTimerDisplay();
     }
 
+    // Show countdown before game starts
+    function showCountdown(callback) {
+      countdown.classList.add('show');
+      let counter = 3;
+      
+      const countdownInterval = setInterval(() => {
+        countdown.textContent = counter;
+        playSound(tickSound);
+        
+        if (counter <= 0) {
+          clearInterval(countdownInterval);
+          countdown.textContent = "GO!";
+          playSound(successSound);
+          
+          setTimeout(() => {
+            countdown.classList.remove('show');
+            if (callback) callback();
+          }, 500);
+        }
+        counter--;
+      }, 1000);
+    }
+
     // Event listeners for settings changes
     randomModeToggle.addEventListener('change', saveSettings);
     soundEffectsToggle.addEventListener('change', saveSettings);
@@ -661,23 +715,16 @@
     startBtn.onclick = () => {
       overlay.classList.remove('show');
       startBtn.style.display = 'none';
-      scoreDisplay.textContent = 'Get Ready…';
-      inPlayback = true;
-      setTimeout(() => {
-        inPlayback = false;
+      showCountdown(() => {
         startGame();
-      }, 2000); // Added delay before starting the game
+      });
     };
 
     restartBtn.onclick = () => {
       overlay.classList.remove('show');
-      scoreDisplay.textContent = 'Get Ready…';
-      inPlayback = true;
-      setTimeout(() => {
-        inPlayback = false;
+      showCountdown(() => {
         startGame();
-      }, 2000); // Added delay before restarting the game
-      restartBtn.style.display = 'none'; // Hide the restart button on the main screen
+      });
     };
 
     resetBtn.onclick = () => {
@@ -800,8 +847,6 @@
 
       endText.textContent = `You reached level ${level}`;
       overlay.classList.add('show');
-      startBtn.style.display = 'block';
-      startBtn.textContent = 'Restart Game';
     }
 
     function rand(min, max) {
