@@ -333,29 +333,6 @@
       100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
     }
 
-    /* Countdown overlay */
-    #countdown {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 10rem;
-      font-weight: bold;
-      color: #fff;
-      text-shadow: 0 0 20px rgba(0,0,0,0.5);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s;
-      z-index: 50;
-    }
-    #countdown.show {
-      opacity: 1;
-    }
-
     /* Responsive adjustments */
     @media (max-width: 500px) {
       #grid-container {
@@ -376,10 +353,6 @@
       input:checked + .slider:before {
         transform: translateX(20px);
       }
-      
-      #countdown {
-        font-size: 6rem;
-      }
     }
   </style>
 </head>
@@ -394,6 +367,14 @@
     
     <div class="setting-group">
       <h3>Gameplay</h3>
+      
+      <label class="toggle-label">
+        <span class="toggle-switch">
+          <input type="checkbox" id="show-timer">
+          <span class="slider"></span>
+        </span>
+        Show Timer
+      </label>
       
       <label class="toggle-label">
         <span class="toggle-switch">
@@ -450,11 +431,19 @@
         <option value="400">⚡ Fast (400ms)</option>
         <option value="300">🔥 Ultra Fast (300ms)</option>
       </select>
+      
+      <label for="time-limit">Time Limit per Level:</label>
+      <select id="time-limit">
+        <option value="0">No Limit</option>
+        <option value="5">5 Seconds</option>
+        <option value="10" selected>10 Seconds</option>
+        <option value="15">15 Seconds</option>
+        <option value="20">20 Seconds</option>
+      </select>
     </div>
   </div>
   
   <div id="toast">Settings saved!</div>
-  <div id="countdown"></div>
 
   <h1>Memory Path</h1>
   <div id="score">Level: 0</div>
@@ -502,19 +491,20 @@
           settingsModal = document.getElementById('settings-modal'),
           closeSettingsBtn = document.querySelector('.close-btn'),
           toast = document.getElementById('toast'),
-          countdown = document.getElementById('countdown'),
           clickSound = document.getElementById('click-sound'),
           errorSound = document.getElementById('error-sound'),
           successSound = document.getElementById('success-sound'),
           tickSound = document.getElementById('tick-sound');
 
     // Settings elements
-    const randomModeToggle = document.getElementById('random-mode'),
+    const showTimerToggle = document.getElementById('show-timer'),
+          randomModeToggle = document.getElementById('random-mode'),
           soundEffectsToggle = document.getElementById('sound-effects'),
           zenModeToggle = document.getElementById('zen-mode'),
           colorThemeSelect = document.getElementById('color-theme'),
           gameModeSelect = document.getElementById('game-mode'),
-          speedSelect = document.getElementById('speed');
+          speedSelect = document.getElementById('speed'),
+          timeLimitSelect = document.getElementById('time-limit');
 
     // Game state
     let sequence = [], 
@@ -524,6 +514,7 @@
         gameActive = false,
         timerInterval = null,
         timeLeft = 0,
+        timeLimit = 10,
         zenMode = false,
         gridSize = 3;
 
@@ -554,28 +545,37 @@
     function loadSettings() {
       const settings = JSON.parse(localStorage.getItem('memory_path_settings')) || {};
       
+      if (settings.showTimer !== undefined) {
+        showTimerToggle.checked = settings.showTimer;
+        timerDisplay.style.display = settings.showTimer ? 'block' : 'none';
+      }
+      
       if (settings.randomMode !== undefined) randomModeToggle.checked = settings.randomMode;
       if (settings.soundEffects !== undefined) soundEffectsToggle.checked = settings.soundEffects;
       if (settings.zenMode !== undefined) zenModeToggle.checked = settings.zenMode;
       if (settings.colorTheme) colorThemeSelect.value = settings.colorTheme;
       if (settings.gameMode) gameModeSelect.value = settings.gameMode;
       if (settings.speed) speedSelect.value = settings.speed;
+      if (settings.timeLimit) timeLimitSelect.value = settings.timeLimit;
       
       // Apply loaded settings
       applyTheme(settings.colorTheme || 'dark');
       setGameMode(settings.gameMode || 'easy');
       zenMode = settings.zenMode || false;
+      timeLimit = parseInt(settings.timeLimit || '10');
     }
 
     // Save settings to localStorage
     function saveSettings() {
       const settings = {
+        showTimer: showTimerToggle.checked,
         randomMode: randomModeToggle.checked,
         soundEffects: soundEffectsToggle.checked,
         zenMode: zenModeToggle.checked,
         colorTheme: colorThemeSelect.value,
         gameMode: gameModeSelect.value,
-        speed: speedSelect.value
+        speed: speedSelect.value,
+        timeLimit: timeLimitSelect.value
       };
       
       localStorage.setItem('memory_path_settings', JSON.stringify(settings));
@@ -633,14 +633,43 @@
     // Start timer countdown
     function startTimer() {
       stopTimer(); // Clear any existing timer
+      timeLeft = timeLimit;
       updateTimerDisplay();
+      
+      if (timeLimit > 0) {
+        timerInterval = setInterval(() => {
+          timeLeft--;
+          updateTimerDisplay();
+          
+          if (timeLeft <= 3 && timeLeft > 0) {
+            playSound(tickSound);
+          }
+          
+          if (timeLeft <= 0) {
+            stopTimer();
+            if (!inPlayback) {
+              playSound(errorSound);
+              gameOver();
+            }
+          }
+        }, 1000);
+      }
     }
 
     // Update timer display
     function updateTimerDisplay() {
-      const progressPercent = 100;
+      timeDisplay.textContent = timeLeft;
+      const progressPercent = (timeLeft / timeLimit) * 100;
       timerProgress.style.width = `${Math.max(0, progressPercent)}%`;
-      timerProgress.style.background = '#0a84ff';
+      
+      // Change color based on time left
+      if (timeLeft <= timeLimit * 0.25) {
+        timerProgress.style.background = '#f44';
+      } else if (timeLeft <= timeLimit * 0.5) {
+        timerProgress.style.background = '#f80';
+      } else {
+        timerProgress.style.background = '#0a84ff';
+      }
     }
 
     // Stop timer
@@ -653,33 +682,16 @@
 
     // Reset timer to full time
     function resetTimer() {
+      timeLeft = timeLimit;
       updateTimerDisplay();
     }
 
-    // Show countdown before game starts
-    function showCountdown(callback) {
-      countdown.classList.add('show');
-      let counter = 3;
-      
-      const countdownInterval = setInterval(() => {
-        countdown.textContent = counter;
-        playSound(tickSound);
-        
-        if (counter <= 0) {
-          clearInterval(countdownInterval);
-          countdown.textContent = "GO!";
-          playSound(successSound);
-          
-          setTimeout(() => {
-            countdown.classList.remove('show');
-            if (callback) callback();
-          }, 500);
-        }
-        counter--;
-      }, 1000);
-    }
-
     // Event listeners for settings changes
+    showTimerToggle.addEventListener('change', function() {
+      timerDisplay.style.display = this.checked ? 'block' : 'none';
+      saveSettings();
+    });
+    
     randomModeToggle.addEventListener('change', saveSettings);
     soundEffectsToggle.addEventListener('change', saveSettings);
     zenModeToggle.addEventListener('change', function() {
@@ -698,6 +710,11 @@
     });
     
     speedSelect.addEventListener('change', saveSettings);
+    
+    timeLimitSelect.addEventListener('change', function() {
+      timeLimit = parseInt(this.value);
+      saveSettings();
+    });
 
     // Main event listeners
     settingsBtn.onclick = () => settingsModal.classList.add('show');
@@ -715,16 +732,22 @@
     startBtn.onclick = () => {
       overlay.classList.remove('show');
       startBtn.style.display = 'none';
-      showCountdown(() => {
+      scoreDisplay.textContent = 'Get Ready…';
+      inPlayback = true;
+      setTimeout(() => {
+        inPlayback = false;
         startGame();
-      });
+      }, 1000);
     };
 
     restartBtn.onclick = () => {
       overlay.classList.remove('show');
-      showCountdown(() => {
+      scoreDisplay.textContent = 'Get Ready…';
+      inPlayback = true;
+      setTimeout(() => {
+        inPlayback = false;
         startGame();
-      });
+      }, 1000);
     };
 
     resetBtn.onclick = () => {
@@ -847,6 +870,8 @@
 
       endText.textContent = `You reached level ${level}`;
       overlay.classList.add('show');
+      startBtn.style.display = 'block';
+      startBtn.textContent = 'Restart Game';
     }
 
     function rand(min, max) {
