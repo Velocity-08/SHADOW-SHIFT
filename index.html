@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One Second Off</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            overflow: auto;
+            user-select: none;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .game-container {
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 20px;
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        h1 {
+            font-size: clamp(1.8rem, 5vw, 2.5rem);
+            margin-bottom: 10px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .subtitle {
+            font-size: clamp(0.8rem, 3vw, 1rem);
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+
+        .timer-display {
+            font-size: clamp(3rem, 10vw, 5rem);
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .target-display {
+            font-size: clamp(1.2rem, 4vw, 1.5rem);
+            margin: 15px 0;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .result {
+            font-size: clamp(1.2rem, 4vw, 1.8rem);
+            margin: 15px 0;
+            height: 60px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+        }
+
+        .score-display {
+            font-size: clamp(1.5rem, 5vw, 2rem);
+            margin: 15px 0;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.5s ease;
+        }
+
+        .button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 12px 25px;
+            font-size: clamp(1rem, 3vw, 1.2rem);
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 8px;
+            transition: all 0.3s ease;
+            outline: none;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            min-width: 120px;
+        }
+
+        .button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .button:active {
+            transform: translateY(1px);
+        }
+
+        .button-start {
+            background: linear-gradient(45deg, #23a6d5, #23d5ab);
+        }
+
+        .button-stop {
+            background: linear-gradient(45deg, #e73c7e, #ee7752);
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.8);
+        }
+
+        .streak-display {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: clamp(0.8rem, 3vw, 0.9rem);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .streak-fire {
+            display: inline-block;
+            margin-left: 5px;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.3s ease;
+        }
+
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            animation: float 10s infinite linear;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) translateX(100px); opacity: 0; }
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #f00;
+            opacity: 0;
+            animation: confettiFall 3s ease-out;
+        }
+
+        @keyframes confettiFall {
+            0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+
+        .accuracy-meter {
+            width: 100%;
+            height: 15px;
+            background-color: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 15px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .accuracy-fill {
+            height: 100%;
+            width: 0%;
+            background-color: green;
+            transition: width 0.6s ease, background-color 0.3s ease;
+        }
+
+        .perfect {
+            animation: perfectGlow 1s ease-out;
+        }
+
+        @keyframes perfectGlow {
+            0% { box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(255, 255, 255, 0.9); }
+            100% { box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+        }
+
+        /* New styles for screenshot and share buttons */
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+            flex-wrap: wrap;
+        }
+
+        .action-buttons.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .button-screenshot {
+            background: linear-gradient(45deg, #4CAF50, #8BC34A);
+        }
+
+        .button-share {
+            background: linear-gradient(45deg, #2196F3, #03A9F4);
+        }
+
+        /* Screenshot modal styles */
+        .screenshot-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .screenshot-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .screenshot-content {
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 20px;
+            padding: 15px;
+            max-width: 100%;
+            max-height: 90vh;
+            text-align: center;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .screenshot-image {
+            max-width: 100%;
+            max-height: 60vh;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .button-restart {
+            background: linear-gradient(45deg, #FF9800, #FF5722);
+        }
+
+        .button-close {
+            background: linear-gradient(45deg, #9E9E9E, #607D8B);
+        }
+
+        /* Leaderboard styles */
+        .leaderboard-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .leaderboard-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .leaderboard-content {
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 20px;
+            padding: 20px;
+            max-width: 90%;
+            max-height: 80vh;
+            width: 400px;
+            text-align: center;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow-y: auto;
+        }
+
+        .leaderboard-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .leaderboard-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 15px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+
+        .leaderboard-name {
+            font-weight: bold;
+        }
+
+        .leaderboard-score {
+            font-weight: bold;
+        }
+
+        .leaderboard-streak {
+            color: #ffcc00;
+            margin-left: 10px;
+        }
+
+        .name-input-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .name-input-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .name-input-content {
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 20px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .name-input-title {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+        }
+
+        .name-input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            border: none;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            outline: none;
+        }
+
+        .name-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .button-leaderboard {
+            background: linear-gradient(45deg, #9C27B0, #673AB7);
+        }
+
+        .button-submit {
+            background: linear-gradient(45deg, #4CAF50, #2E7D32);
+        }
+
+        .button-cancel {
+            background: linear-gradient(45deg, #f44336, #c62828);
+        }
+
+        .submit-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 400px) {
+            .game-container {
+                padding: 15px;
+                width: 95%;
+            }
+            
+            .button {
+                padding: 10px 20px;
+                min-width: 100px;
+                font-size: 0.9rem;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .modal-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .leaderboard-content {
+                width: 95%;
+                padding: 15px;
+            }
+
+            .leaderboard-item {
+                font-size: 0.9rem;
+                padding: 8px 10px;
+            }
+
+            .submit-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="streak-display">Streak: <span id="streak-count">0</span><span class="streak-fire" id="streak-fire">🔥</span></div>
+        <h1>ONE SECOND OFF</h1>
+        <div class="subtitle">Stop the timer exactly on the target time after it disappears</div>
+        
+        <div class="target-display" id="target-display">Target: <span id="target-time">0.000</span>s</div>
+        <div class="timer-display" id="timer-display">0.000</div>
+        
+        <div class="accuracy-meter">
+            <div class="accuracy-fill" id="accuracy-fill"></div>
+        </div>
+        
+        <div class="result" id="result"></div>
+        <div class="score-display" id="score-display">Score: 0</div>
+        
+        <button class="button button-start" id="start-button">START</button>
+        <button class="button button-stop" id="stop-button">STOP</button>
+        
+        <div class="action-buttons" id="action-buttons">
+            <button class="button button-screenshot" id="screenshot-button">TAKE SCREENSHOT</button>
+            <button class="button button-share" id="share-button">SHARE</button>
+            <button class="button button-leaderboard" id="leaderboard-button">LEADERBOARD</button>
+        </div>
+        
+        <div class="particles" id="particles"></div>
+    </div>
+
+    <!-- Screenshot Modal -->
+    <div class="screenshot-modal" id="screenshot-modal">
+        <div class="screenshot-content">
+            <img id="screenshot-image" class="screenshot-image" src="" alt="Game Screenshot">
+            <div class="modal-buttons">
+                <button class="button button-share" id="modal-share-button">SHARE</button>
+                <button class="button button-restart" id="modal-restart-button">RESTART</button>
+                <button class="button button-close" id="modal-close-button">CLOSE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboard Modal -->
+    <div class="leaderboard-modal" id="leaderboard-modal">
+        <div class="leaderboard-content">
+            <h2 class="leaderboard-title">🏆 Leaderboard 🏆</h2>
+            <ul class="leaderboard-list" id="leaderboard-list">
+                <li>Loading leaderboard...</li>
+            </ul>
+            <button class="button button-close" id="leaderboard-close-button">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- Name Input Modal -->
+    <div class="name-input-modal" id="name-input-modal">
+        <div class="name-input-content">
+            <h2 class="name-input-title">Submit to Leaderboard</h2>
+            <p>You achieved a streak of <span id="current-streak-display">0</span>!</p>
+            <input type="text" class="name-input" id="player-name" placeholder="Your name" maxlength="20">
+            <div class="submit-buttons">
+                <button class="button button-submit" id="submit-score-button">SUBMIT</button>
+                <button class="button button-cancel" id="cancel-submit-button">NO THANKS</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game variables
+        let targetTime = 0;
+        let startTime = 0;
+        let timerInterval;
+        let isRunning = false;
+        let streak = 0;
+        let currentScore = 0;
+        let currentStreakForSubmission = 0;
+        
+        // DOM elements
+        const timerDisplay = document.getElementById('timer-display');
+        const targetDisplay = document.getElementById('target-display');
+        const targetTimeSpan = document.getElementById('target-time');
+        const startButton = document.getElementById('start-button');
+        const stopButton = document.getElementById('stop-button');
+        const resultDisplay = document.getElementById('result');
+        const scoreDisplay = document.getElementById('score-display');
+        const accuracyFill = document.getElementById('accuracy-fill');
+        const streakDisplay = document.getElementById('streak-count');
+        const streakFire = document.getElementById('streak-fire');
+        const particlesContainer = document.getElementById('particles');
+        const actionButtons = document.getElementById('action-buttons');
+        const screenshotButton = document.getElementById('screenshot-button');
+        const shareButton = document.getElementById('share-button');
+        const leaderboardButton = document.getElementById('leaderboard-button');
+        const screenshotModal = document.getElementById('screenshot-modal');
+        const screenshotImage = document.getElementById('screenshot-image');
+        const modalShareButton = document.getElementById('modal-share-button');
+        const modalRestartButton = document.getElementById('modal-restart-button');
+        const modalCloseButton = document.getElementById('modal-close-button');
+        const leaderboardModal = document.getElementById('leaderboard-modal');
+        const leaderboardList = document.getElementById('leaderboard-list');
+        const leaderboardCloseButton = document.getElementById('leaderboard-close-button');
+        const nameInputModal = document.getElementById('name-input-modal');
+        const playerNameInput = document.getElementById('player-name');
+        const submitScoreButton = document.getElementById('submit-score-button');
+        const cancelSubmitButton = document.getElementById('cancel-submit-button');
+        const currentStreakDisplay = document.getElementById('current-streak-display');
+        
+        // Submit score to leaderboard
+        function submitToLeaderboard(name, score, streak) {
+            if (!name || score === 0 || streak < 3) return;
+            
+            const date = new Date().toISOString().split("T")[0];
+            
+            fetch("https://sheetdb.io/api/v1/2im8z8n8cu4xa", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    data: [
+                        { Name: name, Score: score, Streak: streak, Date: date }
+                    ]
+                })
+            })
+            .then(res => res.json())
+            .then(() => {
+                alert("✅ Score submitted to leaderboard!");
+                fetchLeaderboard();
+            })
+            .catch(err => {
+                console.error("Error submitting score:", err);
+                alert("❌ Failed to submit score.");
+            });
+        }
+        
+        // Create particles for background
+        function createParticles() {
+            particlesContainer.innerHTML = '';
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                particle.style.left = `${Math.random() * 100}%`;
+                particle.style.top = `${Math.random() * 100}%`;
+                particle.style.animationDelay = `${Math.random() * 10}s`;
+                particle.style.opacity = Math.random() * 0.5;
+                particle.style.width = `${Math.random() * 5 + 2}px`;
+                particle.style.height = particle.style.width;
+                particlesContainer.appendChild(particle);
+            }
+        }
+        
+        // Create confetti effect
+        function createConfetti() {
+            const colors = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff'];
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = `${Math.random() * 100}%`;
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDelay = `${Math.random() * 0.5}s`;
+                confetti.style.width = `${Math.random() * 8 + 4}px`;
+                confetti.style.height = `${Math.random() * 8 + 4}px`;
+                document.body.appendChild(confetti);
+                
+                // Remove confetti after animation
+                setTimeout(() => {
+                    confetti.remove();
+                }, 3000);
+            }
+        }
+        
+        // Generate random target time between 2 and 10 seconds with 1 decimal place
+        function generateTargetTime() {
+            return (Math.random() * 8 + 2).toFixed(1);
+        }
+        
+        // Update streak display
+        function updateStreakDisplay() {
+            streakDisplay.textContent = streak;
+            document.querySelector('.streak-display').style.opacity = '1';
+            
+            if (streak >= 3) {
+                streakFire.style.opacity = '1';
+                streakFire.style.transform = 'scale(1)';
+            } else {
+                streakFire.style.opacity = '0';
+                streakFire.style.transform = 'scale(0)';
+            }
+        }
+        
+        // Start the game
+        function startGame() {
+            // Reset UI
+            resultDisplay.style.opacity = '0';
+            scoreDisplay.style.opacity = '0';
+            accuracyFill.style.width = '0%';
+            document.querySelector('.accuracy-meter').style.opacity = '0';
+            actionButtons.classList.remove('visible');
+            
+            // Generate new target
+            targetTime = generateTargetTime();
+            targetTimeSpan.textContent = targetTime;
+            
+            // Show target briefly
+            targetDisplay.style.opacity = '1';
+            setTimeout(() => {
+                targetDisplay.style.opacity = '0';
+            }, 1500);
+            
+            // Start timer
+            startTime = Date.now();
+            isRunning = true;
+            
+            // Show stop button
+            stopButton.style.opacity = '1';
+            stopButton.style.pointerEvents = 'auto';
+            stopButton.style.transform = 'scale(1)';
+            
+            // Hide start button
+            startButton.style.opacity = '0';
+            startButton.style.pointerEvents = 'none';
+            startButton.style.transform = 'scale(0.8)';
+            
+            // Start timer update
+            timerInterval = setInterval(updateTimer, 10);
+            
+            // Hide timer after 1 second
+            setTimeout(() => {
+                timerDisplay.style.opacity = '0';
+            }, 1000);
+        }
+        
+        // Update timer display to show 1 decimal place
+        function updateTimer() {
+            const currentTime = (Date.now() - startTime) / 1000;
+            timerDisplay.textContent = currentTime.toFixed(1);
+        }
+        
+        // Stop the timer and calculate results
+        function stopTimer() {
+            if (!isRunning) return;
+
+            clearInterval(timerInterval);
+            isRunning = false;
+
+            const endTime = Date.now();
+            const userTime = (endTime - startTime) / 1000;
+            const difference = userTime - targetTime;
+            const absoluteDifference = Math.abs(difference);
+
+            timerDisplay.style.opacity = '1';
+            timerDisplay.textContent = userTime.toFixed(1);
+            targetDisplay.style.opacity = '1';
+
+            let feedback = '';
+            let barColor = 'green';
+            let barFill = 100;
+            let score = 0;
+            let isPerfect = false;
+
+            if (absoluteDifference <= 0.1) {
+                feedback = '🎯 Perfect!';
+                barColor = 'green';
+                barFill = 100;
+                score = 100;
+                streak++;
+                isPerfect = true;
+                
+                // Update streak display
+                updateStreakDisplay();
+
+                if (streak % 5 === 0) {
+                    feedback += ` 🔥 ${streak} in a row!`;
+                    createConfetti();
+                    document.querySelector('.game-container').classList.add('perfect');
+                    setTimeout(() => {
+                        document.querySelector('.game-container').classList.remove('perfect');
+                    }, 1000);
+                }
+            } else {
+                streak = 0; // reset streak on miss
+                updateStreakDisplay();
+
+                if (absoluteDifference <= 0.2) {
+                    feedback = '👌 Very close!';
+                    barColor = 'limegreen';
+                    barFill = 80;
+                    score = 80;
+                } else if (absoluteDifference <= 0.5) {
+                    feedback = '🙂 Not bad!';
+                    barColor = 'orange';
+                    barFill = 50;
+                    score = 50;
+                } else {
+                    feedback = '😢 Too far!';
+                    barColor = 'red';
+                    barFill = 20;
+                    score = 20;
+                }
+            }
+
+            currentScore = score;
+            
+            // Update score to be between 0–100
+            scoreDisplay.textContent = `Score: ${score}`;
+            scoreDisplay.style.opacity = '1';
+
+            // Accuracy bar
+            accuracyFill.style.width = `${barFill}%`;
+            accuracyFill.style.backgroundColor = barColor;
+            document.querySelector('.accuracy-meter').style.opacity = '1';
+
+            // Result feedback
+            resultDisplay.textContent = feedback;
+            resultDisplay.style.opacity = '1';
+            resultDisplay.style.transform = 'translateY(0)';
+
+            // Reset buttons
+            stopButton.style.opacity = '0';
+            stopButton.style.pointerEvents = 'none';
+            stopButton.style.transform = 'scale(0.8)';
+            startButton.style.opacity = '1';
+            startButton.style.pointerEvents = 'auto';
+            startButton.style.transform = 'scale(1)';
+            
+            // Show action buttons
+            actionButtons.classList.add('visible');
+            
+            // Show name input modal if player achieved a streak (3 or more)
+            if (streak >= 3) {
+                currentStreakForSubmission = streak;
+                currentStreakDisplay.textContent = streak;
+                showNameInputModal();
+            }
+        }
+        
+        // Take screenshot of the game container
+        function takeScreenshot() {
+            html2canvas(document.querySelector('.game-container')).then(canvas => {
+                screenshotImage.src = canvas.toDataURL('image/png');
+                screenshotModal.classList.add('active');
+            });
+        }
+        
+        // Share the screenshot or result
+        async function shareResult() {
+            try {
+                // Try to use the Web Share API first
+                if (navigator.share) {
+                    const canvas = await html2canvas(document.querySelector('.game-container'));
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve));
+                    const file = new File([blob], 'one-second-off.png', { type: 'image/png' });
+                    
+                    await navigator.share({
+                        title: 'Check out my One Second Off score!',
+                        text: `I scored ${currentScore} points with a streak of ${streak} in One Second Off! Can you beat me?`,
+                        files: [file]
+                    });
+                } else {
+                    // Fallback for browsers without Web Share API
+                    const canvas = await html2canvas(document.querySelector('.game-container'));
+                    const image = canvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.download = 'one-second-off.png';
+                    link.href = image;
+                    link.click();
+                    
+                    // Show a message that the image was downloaded
+                    alert('Screenshot downloaded! You can now share it manually.');
+                }
+            } catch (err) {
+                console.error('Error sharing:', err);
+                // If sharing fails, fall back to downloading the image
+                const canvas = await html2canvas(document.querySelector('.game-container'));
+                const image = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = 'one-second-off.png';
+                link.href = image;
+                link.click();
+                
+                alert('Screenshot downloaded! You can now share it manually.');
+            }
+        }
+        
+        // Close the screenshot modal
+        function closeScreenshotModal() {
+            screenshotModal.classList.remove('active');
+        }
+        
+        // Show leaderboard modal
+        function showLeaderboard() {
+            leaderboardModal.classList.add('active');
+            fetchLeaderboard();
+        }
+        
+        // Close leaderboard modal
+        function closeLeaderboard() {
+            leaderboardModal.classList.remove('active');
+        }
+        
+        // Show name input modal
+        function showNameInputModal() {
+            playerNameInput.value = '';
+            nameInputModal.classList.add('active');
+        }
+        
+        // Close name input modal
+        function closeNameInputModal() {
+            nameInputModal.classList.remove('active');
+        }
+        
+        // Submit score to leaderboard
+        function submitScore() {
+            const name = playerNameInput.value.trim();
+            if (name === '') {
+                alert('Please enter your name');
+                return;
+            }
+            
+            submitToLeaderboard(name, currentScore, currentStreakForSubmission);
+            closeNameInputModal();
+        }
+        
+        // Fetch leaderboard data
+        function fetchLeaderboard() {
+            leaderboardList.innerHTML = '<li>Loading leaderboard...</li>';
+            
+                    fetch("https://sheetdb.io/api/v1/2im8z8n8cu4xa")
+                .then(response => response.json())
+                .then(data => {
+                    displayLeaderboard(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching leaderboard:', error);
+                    leaderboardList.innerHTML = '<li>Failed to load leaderboard</li>';
+                });
+        }
+        
+        // Display leaderboard data
+function displayLeaderboard(leaderboardData) {
+    leaderboardList.innerHTML = '';
+
+    if (!leaderboardData || leaderboardData.length === 0) {
+        leaderboardList.innerHTML = '<li>No scores yet. Be the first!</li>';
+        return;
+    }
+
+    // ✅ Sort manually by Score (number) in descending order
+    leaderboardData.sort((a, b) => parseInt(b.Score) - parseInt(a.Score));
+
+    // ✅ Show top 10 scores
+    const topScores = leaderboardData.slice(0, 10);
+
+    topScores.forEach((entry, index) => {
+        const li = document.createElement('li');
+        li.className = 'leaderboard-item';
+        li.innerHTML = `
+                <span class="leaderboard-name">${index + 1}. ${entry.name || entry.Name || 'Anonymous'}</span>
+            <div>
+                <span class="leaderboard-score">${entry.Score || 0}</span>
+                ${entry.Streak > 2 ? `<span class="leaderboard-streak">🔥 ${entry.Streak}</span>` : ''}
+            </div>
+        `;
+        leaderboardList.appendChild(li);
+    });
+}
+        
+        // Event listeners
+        startButton.addEventListener('click', startGame);
+        stopButton.addEventListener('click', stopTimer);
+        screenshotButton.addEventListener('click', takeScreenshot);
+        shareButton.addEventListener('click', shareResult);
+        leaderboardButton.addEventListener('click', showLeaderboard);
+        modalShareButton.addEventListener('click', shareResult);
+        modalRestartButton.addEventListener('click', () => {
+            closeScreenshotModal();
+            startGame();
+        });
+        modalCloseButton.addEventListener('click', closeScreenshotModal);
+        leaderboardCloseButton.addEventListener('click', closeLeaderboard);
+        submitScoreButton.addEventListener('click', submitScore);
+        cancelSubmitButton.addEventListener('click', closeNameInputModal);
+        
+        // Close modals when clicking outside content
+        document.addEventListener('click', (e) => {
+            if (e.target === screenshotModal) {
+                closeScreenshotModal();
+            }
+            if (e.target === leaderboardModal) {
+                closeLeaderboard();
+            }
+            if (e.target === nameInputModal) {
+                closeNameInputModal();
+            }
+        });
+        
+        // Initialize
+        createParticles();
+        targetTimeSpan.textContent = parseFloat(targetTimeSpan.textContent).toFixed(1);
+        timerDisplay.textContent = parseFloat(timerDisplay.textContent).toFixed(1);
+        updateStreakDisplay();
+        
+        // Load html2canvas library dynamically
+        const html2canvasScript = document.createElement('script');
+        html2canvasScript.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+        document.head.appendChild(html2canvasScript);
+    </script>
+</body>
+</html>
