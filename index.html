@@ -60,7 +60,7 @@
     }
 
     h1 { margin-bottom: 0.2em; text-transform: uppercase; letter-spacing: 2px; font-size: clamp(1.5rem, 4vw, 2.5rem); }
-    #score, #highscore, #timer { margin-bottom: 0.4em; font-size: clamp(1rem, 3vw, 1.2rem); }
+    #score, #highscore { margin-bottom: 0.4em; font-size: clamp(1rem, 3vw, 1.2rem); }
     #reset-btn {
       background: #444; color: #fff; border: none;
       padding: 0.3em 0.8em; border-radius: 5px;
@@ -141,6 +141,30 @@
     #overlay h2 { margin-bottom: 0.5em; font-size: clamp(1.5rem, 5vw, 2.5rem); }
     #overlay button { background: #f44; }
     #overlay button:hover { background: #d33; }
+    
+    /* Countdown overlay */
+    #countdown-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7); display: flex;
+      justify-content: center; align-items: center;
+      flex-direction: column; color: #fff;
+      opacity: 0; pointer-events: none;
+      transition: opacity .3s;
+      z-index: 100;
+      padding: 20px;
+      text-align: center;
+    }
+    #countdown-overlay.show { opacity: 1; pointer-events: auto; }
+    #countdown-text {
+      font-size: 5rem;
+      font-weight: bold;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
     
     /* Settings Modal */
     #settings-btn {
@@ -279,24 +303,6 @@
       font-size: clamp(0.9rem, 3vw, 1rem);
     }
     
-    /* Timer progress bar */
-    #timer-container {
-      width: 100%;
-      max-width: 300px;
-      height: 10px;
-      background: #333;
-      border-radius: 5px;
-      margin: 10px 0;
-      overflow: hidden;
-    }
-    
-    #timer-progress {
-      height: 100%;
-      width: 100%;
-      background: #0a84ff;
-      transition: width 0.1s linear;
-    }
-    
     /* Toast notification */
     #toast {
       position: fixed;
@@ -370,26 +376,10 @@
       
       <label class="toggle-label">
         <span class="toggle-switch">
-          <input type="checkbox" id="show-timer">
-          <span class="slider"></span>
-        </span>
-        Show Timer
-      </label>
-      
-      <label class="toggle-label">
-        <span class="toggle-switch">
           <input type="checkbox" id="random-mode" checked>
           <span class="slider"></span>
         </span>
         Random Pattern Mode
-      </label>
-      
-      <label class="toggle-label">
-        <span class="toggle-switch">
-          <input type="checkbox" id="sound-effects" checked>
-          <span class="slider"></span>
-        </span>
-        Sound Effects
       </label>
       
       <label class="toggle-label">
@@ -431,15 +421,6 @@
         <option value="400">⚡ Fast (400ms)</option>
         <option value="300">🔥 Ultra Fast (300ms)</option>
       </select>
-      
-      <label for="time-limit">Time Limit per Level:</label>
-      <select id="time-limit">
-        <option value="0">No Limit</option>
-        <option value="5">5 Seconds</option>
-        <option value="10" selected>10 Seconds</option>
-        <option value="15">15 Seconds</option>
-        <option value="20">20 Seconds</option>
-      </select>
     </div>
   </div>
   
@@ -448,12 +429,6 @@
   <h1>Memory Path</h1>
   <div id="score">Level: 0</div>
   <div id="highscore">High Score: 0</div>
-  <div id="timer" style="display: none;">
-    Time Left: <span id="time-display">0</span>s
-    <div id="timer-container">
-      <div id="timer-progress"></div>
-    </div>
-  </div>
   <button id="reset-btn">🔓 Reset High Score</button>
   
   <div id="grid-container">
@@ -468,10 +443,9 @@
     <button id="restart">Restart</button>
   </div>
 
-  <audio id="click-sound" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU..."></audio>
-  <audio id="error-sound" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU..."></audio>
-  <audio id="success-sound" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU..."></audio>
-  <audio id="tick-sound" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU..."></audio>
+  <div id="countdown-overlay">
+    <div id="countdown-text">3</div>
+  </div>
 
   <script>
     // Game elements
@@ -479,9 +453,6 @@
           grid = document.getElementById('grid'),
           scoreDisplay = document.getElementById('score'),
           highScoreDisplay = document.getElementById('highscore'),
-          timerDisplay = document.getElementById('timer'),
-          timeDisplay = document.getElementById('time-display'),
-          timerProgress = document.getElementById('timer-progress'),
           startBtn = document.getElementById('start'),
           overlay = document.getElementById('overlay'),
           endText = document.getElementById('end-text'),
@@ -491,20 +462,15 @@
           settingsModal = document.getElementById('settings-modal'),
           closeSettingsBtn = document.querySelector('.close-btn'),
           toast = document.getElementById('toast'),
-          clickSound = document.getElementById('click-sound'),
-          errorSound = document.getElementById('error-sound'),
-          successSound = document.getElementById('success-sound'),
-          tickSound = document.getElementById('tick-sound');
+          countdownOverlay = document.getElementById('countdown-overlay'),
+          countdownText = document.getElementById('countdown-text');
 
     // Settings elements
-    const showTimerToggle = document.getElementById('show-timer'),
-          randomModeToggle = document.getElementById('random-mode'),
-          soundEffectsToggle = document.getElementById('sound-effects'),
+    const randomModeToggle = document.getElementById('random-mode'),
           zenModeToggle = document.getElementById('zen-mode'),
           colorThemeSelect = document.getElementById('color-theme'),
           gameModeSelect = document.getElementById('game-mode'),
-          speedSelect = document.getElementById('speed'),
-          timeLimitSelect = document.getElementById('time-limit');
+          speedSelect = document.getElementById('speed');
 
     // Game state
     let sequence = [], 
@@ -512,9 +478,6 @@
         level = 0, 
         inPlayback = false,
         gameActive = false,
-        timerInterval = null,
-        timeLeft = 0,
-        timeLimit = 10,
         zenMode = false,
         gridSize = 3;
 
@@ -545,37 +508,26 @@
     function loadSettings() {
       const settings = JSON.parse(localStorage.getItem('memory_path_settings')) || {};
       
-      if (settings.showTimer !== undefined) {
-        showTimerToggle.checked = settings.showTimer;
-        timerDisplay.style.display = settings.showTimer ? 'block' : 'none';
-      }
-      
       if (settings.randomMode !== undefined) randomModeToggle.checked = settings.randomMode;
-      if (settings.soundEffects !== undefined) soundEffectsToggle.checked = settings.soundEffects;
       if (settings.zenMode !== undefined) zenModeToggle.checked = settings.zenMode;
       if (settings.colorTheme) colorThemeSelect.value = settings.colorTheme;
       if (settings.gameMode) gameModeSelect.value = settings.gameMode;
       if (settings.speed) speedSelect.value = settings.speed;
-      if (settings.timeLimit) timeLimitSelect.value = settings.timeLimit;
       
       // Apply loaded settings
       applyTheme(settings.colorTheme || 'dark');
       setGameMode(settings.gameMode || 'easy');
       zenMode = settings.zenMode || false;
-      timeLimit = parseInt(settings.timeLimit || '10');
     }
 
     // Save settings to localStorage
     function saveSettings() {
       const settings = {
-        showTimer: showTimerToggle.checked,
         randomMode: randomModeToggle.checked,
-        soundEffects: soundEffectsToggle.checked,
         zenMode: zenModeToggle.checked,
         colorTheme: colorThemeSelect.value,
         gameMode: gameModeSelect.value,
-        speed: speedSelect.value,
-        timeLimit: timeLimitSelect.value
+        speed: speedSelect.value
       };
       
       localStorage.setItem('memory_path_settings', JSON.stringify(settings));
@@ -615,14 +567,6 @@
       setTimeout(() => toast.classList.remove('show'), 2000);
     }
 
-    // Play sound effect
-    function playSound(sound) {
-      if (soundEffectsToggle.checked) {
-        sound.currentTime = 0;
-        sound.play().catch(e => console.log('Sound playback prevented:', e));
-      }
-    }
-
     // Update high score display
     function updateHighScoreUI() {
       const stored = localStorage.getItem('memory_highscore');
@@ -630,70 +574,8 @@
       highScoreDisplay.textContent = `High Score: ${high}`;
     }
 
-    // Start timer countdown
-    function startTimer() {
-      stopTimer(); // Clear any existing timer
-      timeLeft = timeLimit;
-      updateTimerDisplay();
-      
-      if (timeLimit > 0) {
-        timerInterval = setInterval(() => {
-          timeLeft--;
-          updateTimerDisplay();
-          
-          if (timeLeft <= 3 && timeLeft > 0) {
-            playSound(tickSound);
-          }
-          
-          if (timeLeft <= 0) {
-            stopTimer();
-            if (!inPlayback) {
-              playSound(errorSound);
-              gameOver();
-            }
-          }
-        }, 1000);
-      }
-    }
-
-    // Update timer display
-    function updateTimerDisplay() {
-      timeDisplay.textContent = timeLeft;
-      const progressPercent = (timeLeft / timeLimit) * 100;
-      timerProgress.style.width = `${Math.max(0, progressPercent)}%`;
-      
-      // Change color based on time left
-      if (timeLeft <= timeLimit * 0.25) {
-        timerProgress.style.background = '#f44';
-      } else if (timeLeft <= timeLimit * 0.5) {
-        timerProgress.style.background = '#f80';
-      } else {
-        timerProgress.style.background = '#0a84ff';
-      }
-    }
-
-    // Stop timer
-    function stopTimer() {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-      }
-    }
-
-    // Reset timer to full time
-    function resetTimer() {
-      timeLeft = timeLimit;
-      updateTimerDisplay();
-    }
-
     // Event listeners for settings changes
-    showTimerToggle.addEventListener('change', function() {
-      timerDisplay.style.display = this.checked ? 'block' : 'none';
-      saveSettings();
-    });
-    
     randomModeToggle.addEventListener('change', saveSettings);
-    soundEffectsToggle.addEventListener('change', saveSettings);
     zenModeToggle.addEventListener('change', function() {
       zenMode = this.checked;
       saveSettings();
@@ -710,11 +592,6 @@
     });
     
     speedSelect.addEventListener('change', saveSettings);
-    
-    timeLimitSelect.addEventListener('change', function() {
-      timeLimit = parseInt(this.value);
-      saveSettings();
-    });
 
     // Main event listeners
     settingsBtn.onclick = () => settingsModal.classList.add('show');
@@ -732,22 +609,12 @@
     startBtn.onclick = () => {
       overlay.classList.remove('show');
       startBtn.style.display = 'none';
-      scoreDisplay.textContent = 'Get Ready…';
-      inPlayback = true;
-      setTimeout(() => {
-        inPlayback = false;
-        startGame();
-      }, 1000);
+      startCountdown();
     };
 
     restartBtn.onclick = () => {
       overlay.classList.remove('show');
-      scoreDisplay.textContent = 'Get Ready…';
-      inPlayback = true;
-      setTimeout(() => {
-        inPlayback = false;
-        startGame();
-      }, 1000);
+      startCountdown();
     };
 
     resetBtn.onclick = () => {
@@ -756,19 +623,32 @@
       showToast("High score has been reset!");
     };
 
+    function startCountdown() {
+      countdownOverlay.classList.add('show');
+      let count = 3;
+      countdownText.textContent = count;
+      
+      const countdownInterval = setInterval(() => {
+        count--;
+        if (count > 0) {
+          countdownText.textContent = count;
+        } else {
+          countdownText.textContent = "GO!";
+          setTimeout(() => {
+            clearInterval(countdownInterval);
+            countdownOverlay.classList.remove('show');
+            startGame();
+          }, 500);
+        }
+      }, 1000);
+    }
+
     function startGame() {
       sequence = [];
       level = 0;
       gameActive = true;
       scoreDisplay.textContent = `Level: ${level}`;
       updateHighScoreUI();
-      
-      if (showTimerToggle.checked) {
-        timerDisplay.style.display = 'block';
-      } else {
-        timerDisplay.style.display = 'none';
-      }
-      
       nextLevel();
     }
 
@@ -786,10 +666,6 @@
         sequence.push(newTile);
       }
       
-      // Reset timer for new level
-      resetTimer();
-      startTimer();
-      
       playback();
     }
 
@@ -800,14 +676,11 @@
       sequence.forEach((idx, i) => {
         setTimeout(() => {
           flash(idx);
-          playSound(clickSound);
         }, i * speed);
       });
       
       setTimeout(() => {
         inPlayback = false;
-        // Reset timer when playback ends (time starts when player can input)
-        resetTimer();
       }, sequence.length * speed);
     }
 
@@ -821,7 +694,6 @@
     function handleTap(idx) {
       if (inPlayback || !gameActive) return;
       
-      playSound(clickSound);
       playerInput.push(idx);
       flash(idx);
       
@@ -829,7 +701,6 @@
         const tiles = [...document.querySelectorAll('.tile')];
         tiles[idx].classList.add('fail');
         setTimeout(() => tiles[idx].classList.remove('fail'), 500);
-        playSound(errorSound);
         
         if (zenModeToggle.checked) {
           // Zen mode - just restart the level
@@ -844,14 +715,12 @@
       }
       
       if (playerInput.length === sequence.length) {
-        playSound(successSound);
         setTimeout(nextLevel, 800);
       }
     }
 
     function gameOver() {
       gameActive = false;
-      stopTimer();
       
       const stored = localStorage.getItem('memory_highscore');
       const previousHigh = stored ? parseInt(stored) : 0;
@@ -870,8 +739,6 @@
 
       endText.textContent = `You reached level ${level}`;
       overlay.classList.add('show');
-      startBtn.style.display = 'block';
-      startBtn.textContent = 'Restart Game';
     }
 
     function rand(min, max) {
